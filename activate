@@ -1,2 +1,2 @@
-source ./myvenv/bin/activate
+source ./.venv/bin/activate
 chmod +x activate
