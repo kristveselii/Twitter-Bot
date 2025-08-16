@@ -3,7 +3,7 @@ venv/
 .venv/
 myvenv/
 
-config.py
+config_local.py
 
 
 # Byte-compiled / optimized / DLL files

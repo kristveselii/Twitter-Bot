@@ -1,5 +1,5 @@
 import tweepy
-from config_global import *
+from config import *
 from tkinter import *
 
 consumer_key = CONSUMER_KEY
