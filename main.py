@@ -21,7 +21,6 @@ def authenticate_twitter_app():
 
 #api = authenticate_twitter_app()
 
-# Follow everyone who follows you
 def follow_followers(api):
     if api is None:
         print("API not authenticated. Cannot follow followers.")
