@@ -82,3 +82,11 @@ def reply_to_detroit_lions(api):
     
     print("Finished replying to Detroit Lions tweets.")
 
+def main():
+    api = authenticate_twitter_app()
+    
+    if api:
+        follow_followers(api)
+        reply_to_keyword(api, "Python", "Hello from the Twitter Bot!")
+        reply_to_detroit_lions(api)
+
