@@ -57,3 +57,28 @@ def reply_to_keyword(api, keyword, reply_message):
     
     print("Finished replying to tweets.")
 
+# If the Detroit Lions tweet is found, reply to it
+def reply_to_detroit_lions(api):
+    if api is None:
+        print("API not authenticated. Cannot reply to tweets.")
+        return
+    
+    keyword = "Detroit Lions"
+    reply_message = "Go Lions!"
+    
+    try:
+        for tweet in tweepy.Cursor(api.search_tweets, q=keyword, lang="en").items(5):
+            if "Detroit Lions" in tweet.text:
+                try:
+                    api.update_status(
+                        status=f"@{tweet.user.screen_name} {reply_message}",
+                        in_reply_to_status_id=tweet.id
+                    )
+                    print(f"Replied to {tweet.user.screen_name} about Detroit Lions")
+                except Exception as e:
+                    print(f"Failed to reply to {tweet.user.screen_name}: {e}")
+    except Exception as e:
+        print("An error occurred while searching for tweets:", e)
+    
+    print("Finished replying to Detroit Lions tweets.")
+
