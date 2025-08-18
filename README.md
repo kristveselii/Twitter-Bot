@@ -10,5 +10,5 @@ This is a **Twitter Bot** built with [Tweepy](https://www.tweepy.org/) that:
 
 ### 1. Clone the repository  
 ```bash
-git clone https://github.com/your-username/twitter-bot.git
-cd twitter-bot
+git clone https://github.com/kristveselii/Twitter-Bot.git
+cd Twitter-bot
