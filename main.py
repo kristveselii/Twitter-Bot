@@ -19,7 +19,6 @@ def authenticate_twitter_app():
         print("Authentication failed:", e)
         return None
 
-#api = authenticate_twitter_app()
 
 def follow_followers(api):
     if api is None:
