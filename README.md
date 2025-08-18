@@ -12,3 +12,10 @@ This is a **Twitter Bot** built with [Tweepy](https://www.tweepy.org/) that:
 ```bash
 git clone https://github.com/kristveselii/Twitter-Bot.git
 cd Twitter-bot
+
+## Create and activate a virtual environment
+python -m venv .venv
+source .venv/bin/activate   # On macOS/Linux
+.venv\Scripts\activate      # On Windows
+
+
