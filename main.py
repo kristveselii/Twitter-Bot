@@ -57,7 +57,6 @@ def reply_to_keyword(api, keyword, reply_message):
     
     print("Finished replying to tweets.")
 
-# If the Detroit Lions tweet is found, reply to it
 def reply_to_detroit_lions(api):
     if api is None:
         print("API not authenticated. Cannot reply to tweets.")
