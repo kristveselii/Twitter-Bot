@@ -82,6 +82,7 @@ def reply_to_detroit_lions(api):
     
     print("Finished replying to Detroit Lions tweets.")
 
+# Feel free to change the keyword and reply message
 def main():
     api = authenticate_twitter_app()
     
