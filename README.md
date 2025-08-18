@@ -18,4 +18,9 @@ python -m venv .venv
 source .venv/bin/activate   # On macOS/Linux
 .venv\Scripts\activate      # On Windows
 
+## Install Tweepy
+pip install tweepy
+
+## Run the bot
+python main.py
 
