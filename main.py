@@ -35,7 +35,6 @@ def follow_followers(api):
     
     print("Finished following all followers.")
 
-#follow_followers(api)
 
 def reply_to_keyword(api, keyword, reply_message):
     if api is None:
