@@ -1,11 +1,39 @@
 import tweepy
 import tkinter as tk
+from tkinter import scrolledtext
 import threading
 import random
 import time
 import schedule
 import datetime
 from config import *
+
+# ------------------------
+# Global GUI Components
+# ------------------------
+log_display = None
+
+def log_to_gui(message):
+    """Add a log message to the GUI display"""
+    global log_display
+    if log_display:
+        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        formatted_message = f"[{timestamp}] {message}\n"
+        
+        # Thread-safe GUI update
+        log_display.after(0, lambda: _update_log_display(formatted_message))
+    
+    # Also print to terminal for backup
+    print(message)
+
+def _update_log_display(message):
+    """Update the log display in a thread-safe way"""
+    global log_display
+    if log_display:
+        log_display.config(state=tk.NORMAL)
+        log_display.insert(tk.END, message)
+        log_display.see(tk.END)  # Auto-scroll to bottom
+        log_display.config(state=tk.DISABLED)
 
 # ------------------------
 # Twitter Auth
@@ -53,7 +81,7 @@ TEAM_HASHTAGS = {
     "Baltimore Ravens": "#OnePride #DetroitVsEverybody",
     "Cincinnati Bengals": "#OnePride #DetroitVsEverybody",
     "Kansas City Chiefs": "#OnePride #SuperBowlChamps",
-    "Dallas Cowboys": "#OnePride #America'sTeam",
+    "Dallas Cowboys": "#OnePride #AmericasTeam",
     "Los Angeles Rams": "#OnePride #WestCoastBattle",
     "Pittsburgh Steelers": "#OnePride #SteelCityShowdown",
     "Philadelphia Eagles": "#OnePride #NFCShowdown",
@@ -61,6 +89,9 @@ TEAM_HASHTAGS = {
     "Detroit Lions": "#OnePride",  # Self-reference
     "TBD": "#OnePride #PlayoffBound"
 }
+
+# Scheduler status
+scheduler_running = False
 
 # ------------------------
 # Game Day Functions
@@ -71,19 +102,49 @@ def get_todays_opponent():
     return LIONS_SCHEDULE.get(today)
 
 def create_game_day_message(opponent):
-    """Create a game day message"""
+    """Create a game day message with unique elements"""
+    current_time = datetime.datetime.now()
+    
+    # Base messages with more variety
     messages = [
-        f"🦁 TODAY'S THE DAY! Detroit Lions vs {opponent}! Go Lions! #OnePride",
-        f"🏈 GAME DAY! Lions take on the {opponent} today! Let's roar! #DetroitVsEverybody",
-        f"⚡ IT'S GAME DAY! Detroit Lions vs {opponent}! Time to show them what we're made of! #OnePride",
-        f"🔥 Lions vs {opponent} TODAY! Detroit vs Everybody! Let's get this W! #OnePride",
-        f"🦁 ROAR! Game day is here! Detroit Lions vs {opponent}! #OnePride #DetroitLions"
+        f"🦁 TODAY'S THE DAY! Detroit Lions vs {opponent}! Go Lions!",
+        f"🏈 GAME DAY! Lions take on the {opponent} today! Let's roar!",
+        f"⚡ IT'S GAME DAY! Detroit Lions vs {opponent}! Time to show them what we're made of!",
+        f"🔥 Lions vs {opponent} TODAY! Detroit vs Everybody! Let's get this W!",
+        f"🦁 ROAR! Game day is here! Detroit Lions vs {opponent}!",
+        f"🌟 GAME TIME! Lions ready to battle {opponent}! One Pride!",
+        f"💪 Lions Nation, it's time! Detroit vs {opponent} today!",
+        f"🏆 Big game alert! Lions face {opponent}! Let's go Detroit!",
+        f"⚡ Electric atmosphere! Lions vs {opponent} - Game Day!",
+        f"🔴 Red zone ready! Lions vs {opponent} kicks off today!"
     ]
     
+    # Add time-based variations to make posts more unique
+    if current_time.hour < 12:
+        time_prefix = "Good morning Lions fans! "
+    elif current_time.hour < 17:
+        time_prefix = "Afternoon Lions faithful! "
+    else:
+        time_prefix = "Evening roar! "
+    
     base_message = random.choice(messages)
+    
+    # Sometimes add the time prefix for variety
+    if random.random() < 0.3:  # 30% chance
+        base_message = time_prefix + base_message
+    
+    # Get hashtags for the opponent
     hashtags = TEAM_HASHTAGS.get(opponent, "#OnePride #DetroitVsEverybody")
     
-    return f"{base_message} {hashtags}"
+    # Occasionally add extra flair
+    extra_flair = [
+        "", "", "",  # Empty strings to make it less frequent
+        " 🌟", " ⚡", " 💯", " 🔥", " 💪"
+    ]
+    
+    flair = random.choice(extra_flair)
+    
+    return f"{base_message}{flair} {hashtags}"
 
 def post_game_day_tweet():
     """Post the game day tweet if Lions play today"""
@@ -94,33 +155,46 @@ def post_game_day_tweet():
             message = create_game_day_message(opponent)
             response = client.create_tweet(text=message)
             
-            print(f"🦁 GAME DAY TWEET POSTED!")
-            print(f"   Opponent: {opponent}")
-            print(f"   Message: {message}")
-            print(f"   Tweet ID: {response.data['id']}")
+            log_to_gui(f"🦁 GAME DAY TWEET POSTED!")
+            log_to_gui(f"   Opponent: {opponent}")
+            log_to_gui(f"   Message: {message}")
+            log_to_gui(f"   Tweet ID: {response.data['id']}")
             
             return True
         else:
-            print(f"📅 No Lions game today ({datetime.date.today()})")
+            log_to_gui(f"📅 No Lions game today ({datetime.date.today()})")
             return False
             
     except Exception as e:
-        print(f"❌ Error posting game day tweet: {e}")
+        log_to_gui(f"❌ Error posting game day tweet: {e}")
         return False
 
 def schedule_game_day_posts():
     """Schedule the 10:00 AM game day posts"""
+    global scheduler_running
+    schedule.clear()  # Clear any existing schedules
     schedule.every().day.at("10:00").do(post_game_day_tweet)
-    print("⏰ Scheduled game day tweets for 10:00 AM daily")
+    scheduler_running = True
+    log_to_gui("⏰ Scheduled game day tweets for 10:00 AM daily")
 
 def run_scheduler():
     """Run the scheduler continuously"""
-    print("🔄 Starting tweet scheduler...")
-    print(f"📅 Current time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    global scheduler_running
+    log_to_gui("🔄 Starting tweet scheduler...")
+    log_to_gui(f"📅 Current time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
-    while True:
+    while scheduler_running:
         schedule.run_pending()
         time.sleep(60)  # Check every minute
+    
+    log_to_gui("⏹️ Scheduler stopped")
+
+def stop_scheduler():
+    """Stop the scheduler"""
+    global scheduler_running
+    scheduler_running = False
+    schedule.clear()
+    log_to_gui("⏹️ Stopping scheduler...")
 
 # ------------------------
 # Manual Functions
@@ -128,21 +202,34 @@ def run_scheduler():
 def test_authentication():
     """Test if authentication is working properly"""
     try:
+        log_to_gui("🔐 Testing authentication...")
         me = client.get_me()
-        print(f"✅ Authentication successful! Logged in as: @{me.data.username}")
+        log_to_gui(f"✅ Authentication successful! Logged in as: @{me.data.username}")
         return True
     except Exception as e:
-        print(f"❌ Authentication failed: {e}")
+        log_to_gui(f"❌ Authentication failed: {e}")
         return False
 
 def post_test_game_day_tweet():
     """Manually post a test game day tweet"""
     try:
-        # Use next scheduled game or create a test message
+        log_to_gui("🧪 Posting test tweet...")
+        
+        # Create unique test messages with timestamp and random elements
+        timestamp = datetime.datetime.now().strftime("%H:%M")
+        unique_id = random.randint(1000, 9999)
+        
         opponent = get_todays_opponent()
         
-        if not opponent:
-            # Find the next scheduled game
+        if opponent:
+            # If there's a game today, create a test version of the game day message
+            test_messages = [
+                f"🧪 TEST [{timestamp}]: {create_game_day_message(opponent)} #TestBot{unique_id}",
+                f"🔧 TESTING Game Day Tweet at {timestamp} - Lions vs {opponent}! #OnePride #Test{unique_id}",
+                f"⚡ TEST RUN {unique_id}: Game Day message ready! Lions vs {opponent} 🦁 #TestTweet"
+            ]
+        else:
+            # Find the next scheduled game for testing
             today = datetime.date.today()
             upcoming_games = []
             
@@ -154,24 +241,49 @@ def post_test_game_day_tweet():
             if upcoming_games:
                 upcoming_games.sort()
                 next_game_date, next_opponent = upcoming_games[0]
-                test_message = f"🧪 TEST TWEET: Next Lions game is {next_game_date.strftime('%B %d')} vs {next_opponent}! #OnePride #TestTweet"
+                days_until = (upcoming_games[0][0] - today).days
+                
+                test_messages = [
+                    f"🧪 BOT TEST [{timestamp}]: Next Lions game in {days_until} days vs {next_opponent}! #OnePride #Test{unique_id}",
+                    f"🔧 Testing at {timestamp} - Lions vs {next_opponent} on {next_game_date.strftime('%B %d')}! #TestBot{unique_id}",
+                    f"⚡ Lions Bot Test #{unique_id}: Ready for {next_opponent} game! 🦁 #OnePride #Testing"
+                ]
             else:
-                test_message = f"🧪 TEST TWEET: Detroit Lions Game Day Bot is ready! #OnePride #TestTweet #{random.randint(1000, 9999)}"
-        else:
-            test_message = f"🧪 TEST: {create_game_day_message(opponent)} #TestTweet"
+                test_messages = [
+                    f"🧪 Lions Bot Test #{unique_id} at {timestamp}! Ready to roar! 🦁 #OnePride #TestTweet",
+                    f"🔧 Bot Status Check [{timestamp}]: Detroit Lions Game Day Bot operational! #Test{unique_id}",
+                    f"⚡ Testing Lions Bot #{unique_id} - All systems go! #OnePride #DetroitVsEverybody"
+                ]
+        
+        # Choose a random test message to ensure uniqueness
+        test_message = random.choice(test_messages)
         
         response = client.create_tweet(text=test_message)
-        print(f"✅ Test tweet posted successfully!")
-        print(f"   Message: {test_message}")
-        print(f"   Tweet ID: {response.data['id']}")
+        log_to_gui(f"✅ Test tweet posted successfully!")
+        log_to_gui(f"   Message: {test_message}")
+        log_to_gui(f"   Tweet ID: {response.data['id']}")
         
+    except tweepy.Forbidden as e:
+        if "duplicate content" in str(e).lower():
+            log_to_gui(f"❌ Duplicate content detected. Trying again with different message...")
+            # Try one more time with extra randomization
+            try:
+                extra_unique = f"Test{random.randint(10000, 99999)}"
+                fallback_message = f"🧪 Lions Bot Test {extra_unique} at {datetime.datetime.now().strftime('%H:%M:%S')}! #OnePride #Testing"
+                response = client.create_tweet(text=fallback_message)
+                log_to_gui(f"✅ Fallback test tweet posted!")
+                log_to_gui(f"   Message: {fallback_message}")
+            except Exception as e2:
+                log_to_gui(f"❌ Still failed: {e2}")
+        else:
+            log_to_gui(f"❌ Forbidden error: {e}")
     except Exception as e:
-        print(f"❌ Error posting test tweet: {e}")
+        log_to_gui(f"❌ Error posting test tweet: {e}")
 
 def check_upcoming_games():
     """Display upcoming Lions games"""
-    print("📅 Detroit Lions Upcoming Games:")
-    print("="*50)
+    log_to_gui("📅 Detroit Lions Upcoming Games:")
+    log_to_gui("=" * 50)
     
     today = datetime.date.today()
     upcoming_games = []
@@ -186,130 +298,155 @@ def check_upcoming_games():
         for game_date, opponent in upcoming_games[:5]:  # Show next 5 games
             days_until = (game_date - today).days
             if days_until == 0:
-                print(f"🦁 TODAY: vs {opponent}")
+                log_to_gui(f"🦁 TODAY: vs {opponent}")
             elif days_until == 1:
-                print(f"📅 TOMORROW: vs {opponent}")
+                log_to_gui(f"📅 TOMORROW: vs {opponent}")
             else:
-                print(f"📅 {game_date.strftime('%B %d, %Y')} ({days_until} days): vs {opponent}")
+                log_to_gui(f"📅 {game_date.strftime('%B %d, %Y')} ({days_until} days): vs {opponent}")
     else:
-        print("No upcoming games scheduled in the database")
-        print("Update LIONS_SCHEDULE in the code with new games")
+        log_to_gui("No upcoming games scheduled in the database")
+        log_to_gui("Update LIONS_SCHEDULE in the code with new games")
 
-def add_game_to_schedule():
-    """Function to add games to schedule (for GUI)"""
-    print("📝 To add games to the schedule:")
-    print("1. Edit the LIONS_SCHEDULE dictionary in the code")
-    print("2. Use format: 'YYYY-MM-DD': 'Opponent Name'")
-    print("3. Restart the application")
+def clear_logs():
+    """Clear the log display"""
+    global log_display
+    if log_display:
+        log_display.config(state=tk.NORMAL)
+        log_display.delete(1.0, tk.END)
+        log_display.config(state=tk.DISABLED)
+        log_to_gui("🧹 Logs cleared")
 
 # ------------------------
 # GUI
 # ------------------------
 def create_gui():
     """Create the main GUI interface"""
+    global log_display
+    
     root = tk.Tk()
     root.title("Detroit Lions Game Day Bot")
-    root.geometry("400x600")
+    root.geometry("800x700")
+    
+    # Create main frame with two columns
+    main_frame = tk.Frame(root)
+    main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+    
+    # Left column - Controls
+    left_frame = tk.Frame(main_frame)
+    left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
+    
+    # Right column - Log display
+    right_frame = tk.Frame(main_frame)
+    right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+    
+    # === LEFT COLUMN - CONTROLS ===
     
     # Title
-    title_label = tk.Label(root, text="🦁 Detroit Lions Game Day Bot", 
+    title_label = tk.Label(left_frame, text="🦁 Detroit Lions\nGame Day Bot", 
                           font=("Arial", 14, "bold"), fg="blue")
     title_label.pack(pady=10)
     
     # Current status
     today_opponent = get_todays_opponent()
     if today_opponent:
-        status_text = f"🏈 GAME DAY! vs {today_opponent}"
+        status_text = f"🏈 GAME DAY!\nvs {today_opponent}"
         status_color = "red"
     else:
         status_text = "📅 No game today"
         status_color = "gray"
     
-    status_label = tk.Label(root, text=status_text, font=("Arial", 10), fg=status_color)
+    status_label = tk.Label(left_frame, text=status_text, font=("Arial", 10), 
+                           fg=status_color, justify=tk.CENTER)
     status_label.pack(pady=5)
     
-    # Test Authentication
-    auth_button = tk.Button(
-        root, text="🔐 Test Authentication",
-        command=lambda: threading.Thread(target=test_authentication).start(),
-        bg="lightblue", width=25
-    )
-    auth_button.pack(pady=5)
-    
-    # Check Upcoming Games
-    games_button = tk.Button(
-        root, text="📅 Show Upcoming Games", 
-        command=lambda: threading.Thread(target=check_upcoming_games).start(),
-        bg="lightyellow", width=25
-    )
-    games_button.pack(pady=5)
-    
-    # Test Game Day Tweet
-    test_button = tk.Button(
-        root, text="🧪 Post Test Tweet",
-        command=lambda: threading.Thread(target=post_test_game_day_tweet).start(),
-        bg="lightgreen", width=25
-    )
-    test_button.pack(pady=5)
-    
-    # Manual Game Day Tweet
-    manual_button = tk.Button(
-        root, text="🦁 Post Game Day Tweet Now",
-        command=lambda: threading.Thread(target=post_game_day_tweet).start(),
-        bg="orange", width=25
-    )
-    manual_button.pack(pady=5)
-    
-    # Start Scheduler
-    scheduler_button = tk.Button(
-        root, text="⏰ Start Auto Scheduler",
-        command=lambda: threading.Thread(target=start_scheduler, daemon=True).start(),
-        bg="lightcoral", width=25
-    )
-    scheduler_button.pack(pady=5)
-    
     # Separator
-    separator = tk.Label(root, text="─" * 40)
-    separator.pack(pady=10)
+    tk.Label(left_frame, text="─" * 20).pack(pady=5)
     
-    # Instructions text area
-    instructions = tk.Text(root, height=12, width=45, wrap=tk.WORD)
-    instructions.insert(tk.END, 
-        "🦁 Detroit Lions Game Day Bot\n\n"
-        "How it works:\n"
-        "• Automatically posts at 10:00 AM on game days\n"
-        "• Messages like 'Today the Detroit Lions vs [team], Go Lions!'\n"
-        "• Uses #OnePride and team-specific hashtags\n\n"
-        "Setup Instructions:\n"
-        "1. Test authentication first\n"
-        "2. Check upcoming games in schedule\n"
-        "3. Test with a sample tweet\n"
-        "4. Start the auto scheduler\n"
-        "5. Keep the program running!\n\n"
-        "Schedule Management:\n"
-        "• Edit LIONS_SCHEDULE in code to add games\n"
-        "• Format: 'YYYY-MM-DD': 'Team Name'\n"
-        "• Restart app after adding games\n\n"
-        "Current Features:\n"
-        "✅ Manual posting\n"
-        "✅ Scheduled posting (10:00 AM)\n"
-        "✅ Dynamic messages\n"
-        "✅ Team-specific hashtags"
-    )
-    instructions.config(state=tk.DISABLED)
-    instructions.pack(pady=10)
+    # Control buttons
+    buttons = [
+        ("🔐 Test Auth", test_authentication, "lightblue"),
+        ("📅 Show Games", check_upcoming_games, "lightyellow"), 
+        ("🧪 Test Tweet", post_test_game_day_tweet, "lightgreen"),
+        ("🦁 Post Now", post_game_day_tweet, "orange"),
+    ]
+    
+    for text, command, color in buttons:
+        btn = tk.Button(left_frame, text=text,
+                       command=lambda cmd=command: threading.Thread(target=cmd).start(),
+                       bg=color, width=15, height=2)
+        btn.pack(pady=3)
+    
+    # Scheduler controls
+    tk.Label(left_frame, text="─" * 20).pack(pady=5)
+    tk.Label(left_frame, text="Scheduler", font=("Arial", 10, "bold")).pack()
+    
+    global scheduler_status_label
+    scheduler_status_label = tk.Label(left_frame, text="⏹️ Stopped", fg="red")
+    scheduler_status_label.pack(pady=2)
+    
+    start_btn = tk.Button(left_frame, text="▶️ Start Auto",
+                         command=lambda: start_scheduler_gui(),
+                         bg="lightcoral", width=15)
+    start_btn.pack(pady=2)
+    
+    stop_btn = tk.Button(left_frame, text="⏹️ Stop Auto", 
+                        command=stop_scheduler,
+                        bg="lightgray", width=15)
+    stop_btn.pack(pady=2)
+    
+    # Log controls
+    tk.Label(left_frame, text="─" * 20).pack(pady=5)
+    tk.Label(left_frame, text="Logs", font=("Arial", 10, "bold")).pack()
+    
+    clear_btn = tk.Button(left_frame, text="🧹 Clear Logs",
+                         command=clear_logs,
+                         bg="lightyellow", width=15)
+    clear_btn.pack(pady=2)
     
     # Close button
-    close_button = tk.Button(root, text="❌ Close", command=root.destroy, 
-                           bg="lightgray", width=25)
+    tk.Label(left_frame, text="─" * 20).pack(pady=5)
+    close_button = tk.Button(left_frame, text="❌ Close", 
+                           command=root.destroy, 
+                           bg="lightcoral", width=15)
     close_button.pack(pady=5)
+    
+    # === RIGHT COLUMN - LOG DISPLAY ===
+    
+    log_frame_label = tk.Label(right_frame, text="📋 Activity Log", 
+                              font=("Arial", 12, "bold"))
+    log_frame_label.pack(anchor=tk.W)
+    
+    # Create scrolled text widget for logs
+    log_display = scrolledtext.ScrolledText(
+        right_frame, 
+        width=50, 
+        height=35,
+        wrap=tk.WORD,
+        font=("Consolas", 9),
+        bg="black",
+        fg="green",
+        state=tk.DISABLED
+    )
+    log_display.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+    
+    # Initial welcome message
+    log_to_gui("🦁 Detroit Lions Game Day Bot Initialized")
+    log_to_gui(f"📅 Today: {datetime.date.today()}")
+    log_to_gui("Ready for commands!")
     
     root.mainloop()
 
-def start_scheduler():
-    """Start the scheduler with setup"""
-    schedule_game_day_posts()
-    run_scheduler()
+def start_scheduler_gui():
+    """Start scheduler with GUI updates"""
+    global scheduler_status_label
+    
+    def run_with_status():
+        scheduler_status_label.config(text="▶️ Running", fg="green")
+        schedule_game_day_posts()
+        run_scheduler()
+        scheduler_status_label.config(text="⏹️ Stopped", fg="red")
+    
+    threading.Thread(target=run_with_status, daemon=True).start()
 
 # ------------------------
 # Main
@@ -325,10 +462,6 @@ def main():
         print(f"🏈 GAME DAY! Lions vs {today_opponent}")
     else:
         print("📅 No Lions game today")
-    
-    # Show upcoming games
-    print("\n📅 Next few games:")
-    check_upcoming_games()
     
     print("\n🚀 Launching GUI...")
     create_gui()
