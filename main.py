@@ -1,4 +1,5 @@
 import tweepy
+import tkinter as tk
 from config import *
 
 consumer_key = CONSUMER_KEY
@@ -79,6 +80,19 @@ def reply_to_detroit_lions(api):
     
     print("Finished replying to Detroit Lions tweets.")
 
+# Build GUI
+def create_gui():
+    root = tk.Tk()
+    root.title("Twitter Bot")
+    
+    label = tk.Label(root, text="Twitter Bot is running...")
+    label.pack(pady=20)
+    
+    button = tk.Button(root, text="Close", command=root.destroy)
+    button.pack(pady=10)
+    
+    root.mainloop()
+
 # Feel free to change the keyword and reply message
 def main():
     api = authenticate_twitter_app()
@@ -87,4 +101,6 @@ def main():
         follow_followers(api)
         reply_to_keyword(api, "Python", "Hello from the Twitter Bot!")
         reply_to_detroit_lions(api)
+    create_gui()
+
 
